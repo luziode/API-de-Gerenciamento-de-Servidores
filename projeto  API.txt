@@ -1,0 +1,148 @@
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware para interpretar requisições em JSON
+app.use(express.json());
+
+/**
+ * Banco de dados simulado em memória
+ * Em um ambiente de produção, substitua por um banco de dados real (MongoDB, PostgreSQL, etc.)
+ */
+let servers = [
+  { id: '1', name: 'Web-Server-Prod-01', ip: '192.168.1.10', status: 'running', region: 'us-east-1' },
+  { id: '2', name: 'Database-Prod-01', ip: '192.168.1.20', status: 'stopped', region: 'us-east-1' },
+];
+
+/**
+ * @route GET /api/servers
+ * @desc Retorna a lista de todos os servidores
+ */
+app.get('/api/servers', (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      count: servers.length,
+      data: servers
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+});
+
+/**
+ * @route GET /api/servers/:id
+ * @desc Retorna os detalhes de um servidor específico
+ */
+app.get('/api/servers/:id', (req, res) => {
+  try {
+    const server = servers.find(s => s.id === req.params.id);
+    
+    if (!server) {
+      return res.status(404).json({ success: false, message: 'Servidor não encontrado' });
+    }
+
+    return res.status(200).json({ success: true, data: server });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+});
+
+/**
+ * @route POST /api/servers
+ * @desc Adiciona um novo servidor
+ */
+app.post('/api/servers', (req, res) => {
+  try {
+    const { name, ip, region } = req.body;
+
+    // Validação simples dos campos obrigatórios
+    if (!name || !ip || !region) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Campos obrigatórios ausentes: name, ip e region são necessários.' 
+      });
+    }
+
+    const newServer = {
+      id: Date.now().toString(), // ID único baseado no timestamp atual
+      name,
+      ip,
+      status: 'stopped', // Todo servidor novo começa desligado por segurança
+      region
+    };
+
+    servers.push(newServer);
+
+    return res.status(201).json({ 
+      success: true, 
+      message: 'Servidor criado com sucesso', 
+      data: newServer 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+});
+
+/**
+ * @route PATCH /api/servers/:id/status
+ * @desc Altera o status de um servidor (ligar/desligar)
+ */
+app.patch('/api/servers/:id/status', (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['running', 'stopped', 'rebooting'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Status inválido. Escolha entre: ${validStatuses.join(', ')}` 
+      });
+    }
+
+    const server = servers.find(s => s.id === req.params.id);
+
+    if (!server) {
+      return res.status(404).json({ success: false, message: 'Servidor não encontrado' });
+    }
+
+    server.status = status;
+
+    return res.status(200).json({ 
+      success: true, 
+      message: `Status do servidor atualizado para '${status}'`, 
+      data: server 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+});
+
+/**
+ * @route DELETE /api/servers/:id
+ * @desc Remove um servidor
+ */
+app.delete('/api/servers/:id', (req, res) => {
+  try {
+    const serverIndex = servers.findIndex(s => s.id === req.params.id);
+
+    if (serverIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Servidor não encontrado' });
+    }
+
+    const deletedServer = servers.splice(serverIndex, 1);
+
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Servidor removido com sucesso', 
+      data: deletedServer[0] 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Erro interno no servidor' });
+  }
+});
+
+// Inicialização do Servidor
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
